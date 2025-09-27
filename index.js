@@ -1,17 +1,28 @@
-import express from 'express';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
 import cors from 'cors';
 import dotenv from 'dotenv';
+import express from 'express';
 import cookieParser from 'cookie-parser';
+
+// import db connection
 import connectToDB from './config/db.js';
+
+// import middlewares
+import logger from './middleware/logger.js';
 
 // import routes
 import userRoutes from './routes/user.js';
 import incomeRoutes from './routes/income.js';
 import expenseRoutes from './routes/expense.js';
-
 // load environment variables
 dotenv.config();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5003;
+
+// construct the path
+const __filename = fileURLToPath(import.meta.url);
+const PATH = dirname(__filename);
 
 // connect to database
 connectToDB();
@@ -19,29 +30,43 @@ connectToDB();
 // initialize express
 const app = express();
 
-// enable CORS for frontend
-const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [];
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-}));
+// cors allow the server to accept request from different origin
+const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:5173'];
 
-// middleware
+app.use(cors({
+        origin: "http://localhost:3000", // allow frontend
+        methods: ["GET","POST","PUT","DELETE"],
+        credentials: true
+    }));
+
+// parses
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// routes
-app.use('/api', userRoutes);
-app.use('/api', incomeRoutes);
-app.use('/api', expenseRoutes);
+// serve static files
+app.use(express.static(path.join(PATH, 'dist')));
+
+// use middlewares
+if (process.env.NODE_ENV === 'development') {
+    app.use(logger);
+
+
+}
+
+// use routes
+app.use('/', userRoutes);
+app.use('/', incomeRoutes);
+app.use('/', expenseRoutes);
+
+
+if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(PATH, 'dist', 'index.html'));
+    });
+}
 
 // handle 404
 app.use('*', (req, res) => {
@@ -51,10 +76,10 @@ app.use('*', (req, res) => {
 // handle errors
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({ message: err.message || '500 - Internal Server Error' });
+    res.status(500).json({ message: '500 - Internal Server Error' });
 });
 
-// start server
+// listen to port
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`server is up and running on port :${PORT}`);
 });
