@@ -3,18 +3,22 @@ import dotenv from 'dotenv';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// construct path
+// Construct path
 const __filename = fileURLToPath(import.meta.url);
 const PATH = dirname(__filename);
 
-// Load env variables
+// Load environment variables
 dotenv.config({ path: path.join(PATH, '..', '.env') });
 
 const connectToDB = async () => {
     try {
-        await mongoose.connect(process.env.CONNECTION_URI);
-        console.log('Connected to the database successfully');
+        await mongoose.connect(process.env.CONNECTION_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log('✅ Connected to MongoDB successfully');
     } catch (err) {
+        console.error('❌ Failed to connect to MongoDB');
         console.error(err);
     }
 };
